@@ -1,3 +1,6 @@
 module github.com/seppo0010/boardgamesorganizer
 
-require gopkg.in/tucnak/telebot.v2 v2.0.0-20190415090633-8c1c512262f2
+require (
+	github.com/stretchr/testify v1.3.0
+	gopkg.in/tucnak/telebot.v2 v2.0.0-20190415090633-8c1c512262f2
+)
