@@ -3,15 +3,15 @@ package users
 import "strconv"
 
 type Memory struct {
-	users map[string]*ExternalUser
+	users  map[string]*ExternalUser
 	groups map[string]*ExternalGroup
 }
 
 func NewMemory() *Memory {
 	return &Memory{
-        users: map[string]*ExternalUser{},
-        groups: map[string]*ExternalGroup{},
-    }
+		users:  map[string]*ExternalUser{},
+		groups: map[string]*ExternalGroup{},
+	}
 }
 
 func (m *Memory) GetOrCreateUser(user *ExternalUser) (string, error) {

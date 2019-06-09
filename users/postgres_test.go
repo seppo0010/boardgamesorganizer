@@ -1,10 +1,10 @@
 package users
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"testing"
-	"database/sql"
 )
 
 func getPostgres(t *testing.T) *Postgres {
