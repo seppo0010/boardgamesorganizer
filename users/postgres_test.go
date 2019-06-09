@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"database/sql"
 )
 
 func getPostgres(t *testing.T) *Postgres {
@@ -12,17 +13,17 @@ func getPostgres(t *testing.T) *Postgres {
 		URL = OS_URL
 	}
 
-	f, err := NewPostgres(&PostgresConfig{URL: URL})
+	db, err := sql.Open("postgres", URL)
 	if err != nil {
 		t.Fatalf("cannot connect to db: %#v", err)
 	}
-	for _, table := range []string{"users", "schema_migrations"} {
-		_, err = f.db.Exec(fmt.Sprintf("DROP TABLE %s", table))
+	for _, table := range []string{"users", "schema_migrations", "groups"} {
+		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", table))
 		if err != nil {
 			t.Fatalf("cannot drop db users: %#v", err)
 		}
 	}
-	f, err = NewPostgres(&PostgresConfig{URL: URL})
+	f, err := NewPostgres(&PostgresConfig{URL: URL})
 	if err != nil {
 		t.Fatalf("cannot connect to db: %#v", err)
 	}
@@ -51,4 +52,28 @@ func TestGetExistingUserPostgres(t *testing.T) {
 
 func TestGetNoExistingUserPostgres(t *testing.T) {
 	testGetNoExistingUser(t, getPostgres(t))
+}
+
+func TestCreateGroupPostgres(t *testing.T) {
+	testCreateGroup(t, getPostgres(t))
+}
+
+func TestCreateGetGroupPostgres(t *testing.T) {
+	testCreateGetGroup(t, getPostgres(t))
+}
+
+func TestCreateSecondGroupPostgres(t *testing.T) {
+	testCreateSecondGroup(t, getPostgres(t))
+}
+
+func TestCreateSecondGroupSourcePostgres(t *testing.T) {
+	testCreateSecondGroupSource(t, getPostgres(t))
+}
+
+func TestGetExistingGroupPostgres(t *testing.T) {
+	testGetExistingGroup(t, getPostgres(t))
+}
+
+func TestGetNoExistingGroupPostgres(t *testing.T) {
+	testGetNoExistingGroup(t, getPostgres(t))
 }

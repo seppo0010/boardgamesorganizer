@@ -33,3 +33,33 @@ func TestGetNoExistingUserMemory(t *testing.T) {
 	t.Parallel()
 	testGetNoExistingUser(t, NewMemory())
 }
+
+func TestCreateGroupMemory(t *testing.T) {
+	t.Parallel()
+	testCreateGroup(t, NewMemory())
+}
+
+func TestCreateGetGroupMemory(t *testing.T) {
+	t.Parallel()
+	testCreateGetGroup(t, NewMemory())
+}
+
+func TestCreateSecondGroupMemory(t *testing.T) {
+	t.Parallel()
+	testCreateSecondGroup(t, NewMemory())
+}
+
+func TestCreateSecondGroupSourceMemory(t *testing.T) {
+	t.Parallel()
+	testCreateSecondGroupSource(t, NewMemory())
+}
+
+func TestGetExistingGroupMemory(t *testing.T) {
+	t.Parallel()
+	testGetExistingGroup(t, NewMemory())
+}
+
+func TestGetNoExistingGroupMemory(t *testing.T) {
+	t.Parallel()
+	testGetNoExistingGroup(t, NewMemory())
+}

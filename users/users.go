@@ -10,13 +10,21 @@ const (
 )
 
 var UserNotFound = errors.New("User not found")
+var GroupNotFound = errors.New("Group not found")
 
 type ExternalUser struct {
 	ID     string
 	Source Source
 }
 
+type ExternalGroup struct {
+	ID     string
+	Source Source
+}
+
 type Factory interface {
-	GetOrCreate(user *ExternalUser) (string, error)
-	GetExternal(userID string) (*ExternalUser, error)
+	GetOrCreateUser(user *ExternalUser) (string, error)
+	GetExternalUser(userID string) (*ExternalUser, error)
+	GetOrCreateGroup(group *ExternalGroup) (string, error)
+	GetExternalGroup(groupID string) (*ExternalGroup, error)
 }

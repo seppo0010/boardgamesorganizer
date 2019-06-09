@@ -37,7 +37,7 @@ func NewPostgres(config *PostgresConfig) (*Postgres, error) {
 	return &Postgres{db: db}, nil
 }
 
-func (p *Postgres) GetOrCreate(user *ExternalUser) (string, error) {
+func (p *Postgres) GetOrCreateUser(user *ExternalUser) (string, error) {
 	query := `
 	INSERT INTO users (external_id, source)
 	VALUES ($1, $2)
@@ -53,7 +53,7 @@ func (p *Postgres) GetOrCreate(user *ExternalUser) (string, error) {
 	return strconv.Itoa(userid), nil
 }
 
-func (p *Postgres) GetExternal(userID string) (*ExternalUser, error) {
+func (p *Postgres) GetExternalUser(userID string) (*ExternalUser, error) {
 	query := `
 	SELECT external_id, source FROM users WHERE id = $1
 	`
@@ -65,6 +65,40 @@ func (p *Postgres) GetExternal(userID string) (*ExternalUser, error) {
 		}
 		if err == sql.ErrNoRows {
 			return nil, UserNotFound
+		}
+		return nil, err
+	}
+	return ext, nil
+}
+
+func (p *Postgres) GetOrCreateGroup(group *ExternalGroup) (string, error) {
+	query := `
+	INSERT INTO groups (external_id, source)
+	VALUES ($1, $2)
+	ON CONFLICT(external_id, source)
+		DO UPDATE SET source = $2
+	RETURNING id;
+	`
+	var groupid int
+	err := p.db.QueryRow(query, group.ID, int(group.Source)).Scan(&groupid)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(groupid), nil
+}
+
+func (p *Postgres) GetExternalGroup(groupID string) (*ExternalGroup, error) {
+	query := `
+	SELECT external_id, source FROM groups WHERE id = $1
+	`
+	ext := &ExternalGroup{}
+	err := p.db.QueryRow(query, groupID).Scan(&ext.ID, &ext.Source)
+	if err != nil {
+		if err, ok := err.(*pq.Error); ok && err.Routine == "pg_atoi" {
+			return nil, GroupNotFound
+		}
+		if err == sql.ErrNoRows {
+			return nil, GroupNotFound
 		}
 		return nil, err
 	}
