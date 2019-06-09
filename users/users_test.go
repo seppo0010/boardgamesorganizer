@@ -73,7 +73,10 @@ func testGetExistingUser(t *testing.T, f Factory) {
 
 func testGetNoExistingUser(t *testing.T, f Factory) {
 	assert := assert.New(t)
-	ext, err := f.GetExternal("A")
+	ext, err := f.GetExternal("3")
+	assert.Nil(ext)
+	assert.Equal(err, UserNotFound)
+	ext, err = f.GetExternal("A")
 	assert.Nil(ext)
 	assert.Equal(err, UserNotFound)
 }
