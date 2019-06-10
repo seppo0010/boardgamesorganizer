@@ -3,6 +3,7 @@ package users
 import (
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"os"
 	"testing"
 )
@@ -19,8 +20,8 @@ func getPostgres(t *testing.T) *Postgres {
 	}
 	for _, table := range []string{"users", "schema_migrations", "groups"} {
 		_, err = db.Exec(fmt.Sprintf("DROP TABLE %s", table))
-		if err != nil {
-			t.Fatalf("cannot drop db users: %#v", err)
+		if err, ok := err.(*pq.Error); ok && err.Routine != "DropErrorMsgNonExistent" {
+			t.Fatalf("cannot drop db table %s: %#v", table, err)
 		}
 	}
 	f, err := NewPostgres(&PostgresConfig{URL: URL})
