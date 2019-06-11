@@ -14,6 +14,15 @@ import (
 
 var ErrNeedsSegments = errors.New("Needs to be location;datetime. For example 'Home;2019-03-05 20:01:00'")
 var ErrInvalidDate = errors.New("Datetime must follow the format YYYY-MM-DD HH:mm:ss. For example 'Home;2019-03-05 20:01:00'")
+var defaultLocation *time.Location
+
+func init() {
+	var err error
+	defaultLocation, err = time.LoadLocation("America/Argentina/Buenos_Aires") // FIXME: config timezone?
+	if err != nil {
+		panic(err)
+	}
+}
 
 func parseQuery(input string) (*meetings.Meeting, error) {
 	data := strings.Split(input, ";")
@@ -31,9 +40,47 @@ func parseQuery(input string) (*meetings.Meeting, error) {
 }
 
 func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
+	var b *tb.Bot
 	b, err := tb.NewBot(tb.Settings{
-		Token:  token,
-		Poller: &tb.LongPoller{Timeout: 1 * time.Second},
+		Token: token,
+		Poller: tb.NewMiddlewarePoller(&tb.LongPoller{Timeout: 1 * time.Second}, func(upd *tb.Update) bool {
+			if upd.Callback != nil {
+				if upd.Callback.Data != "\fgoing" && upd.Callback.Data != "\fnotGoing" {
+					return true
+				}
+				going := upd.Callback.Data == "\fgoing"
+				userID, err := uf.GetOrCreateUser(&users.ExternalUser{Source: users.SourceTelegram, ID: strconv.Itoa(upd.Callback.Sender.ID)})
+				if err != nil {
+					b.Respond(upd.Callback, &tb.CallbackResponse{})
+					return false
+				}
+				groupID, err := uf.GetOrCreateGroup(&users.ExternalGroup{Source: users.SourceTelegram, ID: strconv.FormatInt(upd.Callback.Message.Chat.ID, 10)})
+				if err != nil {
+					b.Respond(upd.Callback, &tb.CallbackResponse{})
+					return false
+				}
+				if going {
+					mf.AddUserToMeeting(groupID, userID)
+				} else {
+					mf.RemoveUserFromMeeting(groupID, userID)
+				}
+				if err != nil {
+					b.Respond(upd.Callback, &tb.CallbackResponse{})
+					return false
+				}
+				var text string
+				if going {
+					text = "OK, going"
+				} else {
+					text = "OK, not going"
+				}
+				b.Respond(upd.Callback, &tb.CallbackResponse{
+					Text: text,
+				})
+				return false
+			}
+			return true
+		}),
 	})
 
 	if err != nil {
@@ -98,7 +145,24 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 			}
 			return
 		}
-		b.Send(m.Chat, "Meeting created!")
+		goingButton := tb.InlineButton{
+			Unique: "going",
+			Text:   "Going",
+		}
+		notGoingButton := tb.InlineButton{
+			Unique: "notGoing",
+			Text:   "Not Going",
+		}
+		b.Send(m.Chat, fmt.Sprintf("Meeting created for %s at %s!", meeting.Time.In(defaultLocation).Format("Monday 02 Jan 2006 15:04"), meeting.Location), &tb.SendOptions{
+			ReplyMarkup: &tb.ReplyMarkup{
+				InlineKeyboard: [][]tb.InlineButton{
+					[]tb.InlineButton{
+						goingButton,
+						notGoingButton,
+					},
+				},
+			},
+		})
 	})
 
 	b.Start()
