@@ -54,3 +54,7 @@ func TestMeetingInThePastPostgres(t *testing.T) {
 func TestAddUserToMeetingBeforeMeetingPostgres(t *testing.T) {
 	testMeetingInThePast(t, getPostgres(t))
 }
+
+func TestCannotAddAfterCapacityPostgres(t *testing.T) {
+	testCannotAddAfterCapacity(t, getPostgres(t))
+}

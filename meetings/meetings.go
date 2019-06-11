@@ -12,10 +12,12 @@ var MeetingIsInThePast = errors.New("Meetings can only be created in the future"
 var UserAlreadyAttendsMeeting = errors.New("User is already attending meeting")
 var UserDoesNotAttendMeeting = errors.New("User is not attending meeting")
 var UnexpectedError = errors.New("Unexpected error")
+var MeetingIsFull = errors.New("Meeting is full")
 
 type Meeting struct {
 	Time     time.Time
 	Location string
+	Capacity int
 }
 
 type Inner interface {
@@ -54,4 +56,19 @@ func (f *Factory) CreateMeeting(groupID string, meeting *Meeting) error {
 		return MeetingIsInThePast
 	}
 	return f.Inner.CreateMeeting(groupID, meeting)
+}
+
+func (f *Factory) AddUserToMeeting(groupID string, userID string) error {
+	meeting, err := f.GetMeeting(groupID)
+	if err != nil {
+		return err
+	}
+	attendees, err := f.GetMeetingAttendees(groupID)
+	if err != nil {
+		return err
+	}
+	if meeting.Capacity > 0 && meeting.Capacity <= len(attendees) {
+		return MeetingIsFull
+	}
+	return f.Inner.AddUserToMeeting(groupID, userID)
 }

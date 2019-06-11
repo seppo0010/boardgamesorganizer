@@ -12,8 +12,9 @@ import (
 	"time"
 )
 
-var ErrNeedsSegments = errors.New("Needs to be location;datetime. For example 'Home;2019-03-05 20:01:00'")
-var ErrInvalidDate = errors.New("Datetime must follow the format YYYY-MM-DD HH:mm:ss. For example 'Home;2019-03-05 20:01:00'")
+var ErrNeedsSegments = errors.New("Needs to be location;datetime;capacity. For example 'Home;2019-03-05 20:01:00;8'")
+var ErrInvalidDate = errors.New("Datetime must follow the format YYYY-MM-DD HH:mm:ss. For example 'Home;2019-03-05 20:01:00;3'")
+var ErrInvalidCapacity = errors.New("Capacity must be a number. Use 0 for unlimited. For example 'Home;2019-03-05 20:01:00;3'")
 var defaultLocation *time.Location
 
 func init() {
@@ -26,16 +27,21 @@ func init() {
 
 func parseQuery(input string) (*meetings.Meeting, error) {
 	data := strings.Split(input, ";")
-	if len(data) != 2 {
+	if len(data) != 3 {
 		return nil, ErrNeedsSegments
 	}
 	date, err := time.Parse("2006-01-02 15:04:05", strings.TrimSpace(data[1]))
 	if err != nil {
 		return nil, ErrInvalidDate
 	}
+	capacity, err := strconv.Atoi(strings.TrimSpace(data[2]))
+	if err != nil || capacity < 0 {
+		return nil, ErrInvalidCapacity
+	}
 	return &meetings.Meeting{
 		Time:     date,
 		Location: strings.TrimSpace(data[0]),
+		Capacity: capacity,
 	}, nil
 }
 

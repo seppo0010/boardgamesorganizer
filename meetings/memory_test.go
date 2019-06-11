@@ -27,3 +27,7 @@ func TestMeetingInThePastMemory(t *testing.T) {
 func TestAddUserToMeetingBeforeMeetingMemory(t *testing.T) {
 	testMeetingInThePast(t, NewMemory())
 }
+
+func TestCannotAddAfterCapacityMemory(t *testing.T) {
+	testCannotAddAfterCapacity(t, NewMemory())
+}

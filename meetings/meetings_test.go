@@ -138,3 +138,28 @@ func testAddUserToMeetingBeforeMeeting(t *testing.T, f *Factory) {
 	err := f.AddUserToMeeting(groupID, userID)
 	assert.Equal(err, NoActiveMeeting)
 }
+
+func testCannotAddAfterCapacity(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	setTimeFactory(f)
+	m := &Meeting{
+		Time:     time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC),
+		Capacity: 2,
+	}
+	groupID := "ashf"
+	userID := "qw"
+	userID1 := "er"
+	userID2 := "tr"
+
+	err := f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	err = f.AddUserToMeeting(groupID, userID)
+	assert.NoError(err)
+
+	err = f.AddUserToMeeting(groupID, userID1)
+	assert.NoError(err)
+
+	err = f.AddUserToMeeting(groupID, userID2)
+	assert.Equal(err, MeetingIsFull)
+}
