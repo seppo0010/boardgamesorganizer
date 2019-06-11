@@ -11,6 +11,7 @@ var MeetingAlreadyActive = errors.New("Group can only have one active meeting at
 var MeetingIsInThePast = errors.New("Meetings can only be created in the future")
 var UserAlreadyAttendsMeeting = errors.New("User is already attending meeting")
 var UserDoesNotAttendMeeting = errors.New("User is not attending meeting")
+var UnexpectedError = errors.New("Unexpected error")
 
 type Meeting struct {
 	Time     time.Time
