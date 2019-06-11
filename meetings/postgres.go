@@ -46,16 +46,16 @@ func (p *Postgres) CreateMeeting(groupID string, meeting *Meeting) error {
 	INSERT INTO meetings (group_id, time, location)
 	VALUES ($1, $2, $3)
 	ON CONFLICT DO NOTHING
-    RETURNING id;
+	RETURNING id;
 	`
 	id := 0
 	err := p.db.QueryRow(query, groupID, meeting.Time, meeting.Location).Scan(&id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return MeetingAlreadyActive
+		}
 		log.Printf("failed to create meeting: %#v", err)
 		return UnexpectedError
-	}
-	if id == 0 {
-		return MeetingAlreadyActive
 	}
 	return nil
 }
@@ -98,13 +98,66 @@ func (p *Postgres) GetMeeting(groupID string) (*Meeting, error) {
 }
 
 func (p *Postgres) AddUserToMeeting(groupID string, userID string) error {
+	query := `
+	INSERT INTO attendees (group_id, user_id)
+	VALUES ($1, $2)
+	ON CONFLICT DO NOTHING
+	RETURNING id;
+	`
+	id := 0
+	err := p.db.QueryRow(query, groupID, userID).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return UserAlreadyAttendsMeeting
+		}
+		log.Printf("failed to add attendee: %#v", err)
+		return UnexpectedError
+	}
 	return nil
 }
 func (p *Postgres) RemoveUserFromMeeting(groupID string, userID string) error {
+	query := `
+	DELETE FROM attendees WHERE group_id = $1 AND user_id = $2
+	`
+	result, err := p.db.Exec(query, groupID, userID)
+	if err != nil {
+		log.Printf("failed to delete attendee: %#v", err)
+		return UnexpectedError
+	}
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("failed to get affected rows after deleting attendee: %#v", err)
+		return UnexpectedError
+	}
+	if affectedRows == 0 {
+		return UserDoesNotAttendMeeting
+	}
 	return nil
 }
 
 func (p *Postgres) GetMeetingAttendees(groupID string) ([]string, error) {
-	return nil, nil
+	query := `
+	SELECT user_id FROM attendees WHERE group_id = $1
+	`
+	rows, err := p.db.Query(query, groupID)
+	if err != nil {
+		log.Printf("failed to get attendees: %#v", err)
+		return nil, UnexpectedError
+	}
+	defer rows.Close()
+	userIDs := make([]string, 0)
+	for rows.Next() {
+		var userID string
+		if err := rows.Scan(&userID); err != nil {
+			log.Printf("failed to get next attendee: %#v", err)
+			return nil, UnexpectedError
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("failed to get close attendees: %#v", err)
+		return nil, UnexpectedError
+	}
+	return userIDs, nil
 
 }
