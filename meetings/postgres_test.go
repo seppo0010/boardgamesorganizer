@@ -24,7 +24,7 @@ func getPostgres(t *testing.T) *Factory {
 			t.Fatalf("cannot drop db table %s: %#v", table, err)
 		}
 	}
-	f, err := NewPostgres(&PostgresConfig{URL: URL})
+	f, err := NewPostgres(&PostgresConfig{URL: URL, MigrationsPath: "./migrations"})
 	if err != nil {
 		t.Fatalf("cannot connect to db: %#v", err)
 	}

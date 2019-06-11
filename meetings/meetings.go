@@ -40,6 +40,15 @@ func (f *Factory) SetTimeFactory(tf ftime.Factory) {
 	f.timeFactory = tf
 }
 
+func (f *Factory) CanCreateMeeting(groupID string, meeting *Meeting) error {
+	if meeting.Time.Before(f.timeFactory.Now()) {
+		return MeetingIsInThePast
+	}
+	if _, err := f.GetMeeting(groupID); err == nil {
+		return MeetingAlreadyActive
+	}
+	return nil
+}
 func (f *Factory) CreateMeeting(groupID string, meeting *Meeting) error {
 	if meeting.Time.Before(f.timeFactory.Now()) {
 		return MeetingIsInThePast

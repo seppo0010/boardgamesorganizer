@@ -2,6 +2,7 @@ package meetings
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -10,7 +11,8 @@ import (
 )
 
 type PostgresConfig struct {
-	URL string
+	URL            string
+	MigrationsPath string
 }
 
 type Postgres struct {
@@ -28,7 +30,7 @@ func NewPostgres(config *PostgresConfig) (*Factory, error) {
 		log.Print("failed to start driver")
 		return nil, err
 	}
-	m, err := migrate.NewWithDatabaseInstance("file://./migrations", "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(fmt.Sprintf("file://%s", config.MigrationsPath), "postgres", driver)
 	if err != nil {
 		log.Print("failed to start migrations")
 		return nil, err
