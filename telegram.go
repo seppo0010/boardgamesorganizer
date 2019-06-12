@@ -17,6 +17,20 @@ var ErrInvalidDate = errors.New("Datetime must follow the format YYYY-MM-DD HH:m
 var ErrInvalidCapacity = errors.New("Capacity must be a number. Use 0 for unlimited. For example 'Home;2019-03-05 20:01:00;3'")
 var defaultLocation *time.Location
 
+const goingResponse = "OK, going!"
+const notGoingResponse = "OK, not going :("
+const goingCallbackData = "\fgoing"
+const notGoingCallbackData = "\fnotGoing"
+const goingIdentifier = "going"
+const notGoingIdentifier = "notGoing"
+const goingLabel = "Going"
+const notGoingLabel = "Not going"
+const nextEventTitle = "Next event!"
+const nextEventDescription = "Where: %s, When: %s"
+const meetingCreatedText = "Meeting created for %s at %s!"
+const meetingCreatedDateFormat = "Monday 02 Jan 2006 15:04"
+const invalidInputTitle = "Invalid input"
+
 func init() {
 	var err error
 	defaultLocation, err = time.LoadLocation("America/Argentina/Buenos_Aires") // FIXME: config timezone?
@@ -62,11 +76,11 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 				}
 				respondEmpty := func() bool { return respond("") }
 
-				if upd.Callback.Data != "\fgoing" && upd.Callback.Data != "\fnotGoing" {
+				if upd.Callback.Data != goingCallbackData && upd.Callback.Data != notGoingCallbackData {
 					return true
 				}
 
-				going := upd.Callback.Data == "\fgoing"
+				going := upd.Callback.Data == goingCallbackData
 
 				userID, err := uf.GetOrCreateUser(&users.ExternalUser{Source: users.SourceTelegram, ID: strconv.Itoa(upd.Callback.Sender.ID)})
 				if err != nil {
@@ -88,9 +102,9 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 				}
 
 				if going {
-					return respond("OK, going")
+					return respond(goingResponse)
 				}
-				return respond("OK, not going")
+				return respond(notGoingResponse)
 			}
 			return true
 		}),
@@ -106,7 +120,7 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 			err = b.Answer(q, &tb.QueryResponse{
 				Results: tb.Results{
 					&tb.ArticleResult{
-						Title:       "Invalid input",
+						Title:       invalidInputTitle,
 						Description: err.Error(),
 						Text:        "-",
 					},
@@ -122,8 +136,8 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 		err = b.Answer(q, &tb.QueryResponse{
 			Results: tb.Results{
 				&tb.ArticleResult{
-					Title:       "Next event!",
-					Description: fmt.Sprintf("Where: %s, When: %s", m.Location, m.Time.Format(time.RFC1123)),
+					Title:       nextEventTitle,
+					Description: fmt.Sprintf(nextEventDescription, m.Location, m.Time.Format(time.RFC1123)),
 					Text:        q.Text,
 				},
 			},
@@ -159,14 +173,14 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 			return
 		}
 		goingButton := tb.InlineButton{
-			Unique: "going",
-			Text:   "Going",
+			Unique: goingIdentifier,
+			Text:   goingLabel,
 		}
 		notGoingButton := tb.InlineButton{
-			Unique: "notGoing",
-			Text:   "Not Going",
+			Unique: notGoingIdentifier,
+			Text:   notGoingLabel,
 		}
-		b.Send(m.Chat, fmt.Sprintf("Meeting created for %s at %s!", meeting.Time.In(defaultLocation).Format("Monday 02 Jan 2006 15:04"), meeting.Location), &tb.SendOptions{
+		b.Send(m.Chat, fmt.Sprintf(meetingCreatedText, meeting.Time.In(defaultLocation).Format(meetingCreatedDateFormat), meeting.Location), &tb.SendOptions{
 			ReplyMarkup: &tb.ReplyMarkup{
 				InlineKeyboard: [][]tb.InlineButton{
 					[]tb.InlineButton{
