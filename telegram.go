@@ -98,6 +98,9 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 					err = mf.RemoveUserFromMeeting(groupID, userID)
 				}
 				if err != nil {
+					if err == meetings.NoActiveMeeting {
+						return respond(err.Error())
+					}
 					return respondEmpty()
 				}
 
