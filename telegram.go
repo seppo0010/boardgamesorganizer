@@ -51,39 +51,46 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 		Token: token,
 		Poller: tb.NewMiddlewarePoller(&tb.LongPoller{Timeout: 1 * time.Second}, func(upd *tb.Update) bool {
 			if upd.Callback != nil {
+				respond := func(text string) bool {
+					err := b.Respond(upd.Callback, &tb.CallbackResponse{
+						Text: text,
+					})
+					if err != nil {
+						log.Print(err)
+					}
+					return false
+				}
+				respondEmpty := func() bool { return respond("") }
+
 				if upd.Callback.Data != "\fgoing" && upd.Callback.Data != "\fnotGoing" {
 					return true
 				}
+
 				going := upd.Callback.Data == "\fgoing"
+
 				userID, err := uf.GetOrCreateUser(&users.ExternalUser{Source: users.SourceTelegram, ID: strconv.Itoa(upd.Callback.Sender.ID)})
 				if err != nil {
-					b.Respond(upd.Callback, &tb.CallbackResponse{})
-					return false
+					return respondEmpty()
 				}
+
 				groupID, err := uf.GetOrCreateGroup(&users.ExternalGroup{Source: users.SourceTelegram, ID: strconv.FormatInt(upd.Callback.Message.Chat.ID, 10)})
 				if err != nil {
-					b.Respond(upd.Callback, &tb.CallbackResponse{})
-					return false
+					return respondEmpty()
 				}
+
 				if going {
-					mf.AddUserToMeeting(groupID, userID)
+					err = mf.AddUserToMeeting(groupID, userID)
 				} else {
-					mf.RemoveUserFromMeeting(groupID, userID)
+					err = mf.RemoveUserFromMeeting(groupID, userID)
 				}
 				if err != nil {
-					b.Respond(upd.Callback, &tb.CallbackResponse{})
-					return false
+					return respondEmpty()
 				}
-				var text string
+
 				if going {
-					text = "OK, going"
-				} else {
-					text = "OK, not going"
+					return respond("OK, going")
 				}
-				b.Respond(upd.Callback, &tb.CallbackResponse{
-					Text: text,
-				})
-				return false
+				return respond("OK, not going")
 			}
 			return true
 		}),

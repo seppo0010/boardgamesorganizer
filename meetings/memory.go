@@ -3,6 +3,7 @@ package meetings
 type Memory struct {
 	groupMeetings  map[string]*Meeting
 	groupAttendees map[string][]string
+	closedMeetings map[string][]*Meeting
 }
 
 func stringInSliceIndex(a string, list []string) int {
@@ -18,6 +19,7 @@ func NewMemory() *Factory {
 	return NewFactory(&Memory{
 		groupMeetings:  map[string]*Meeting{},
 		groupAttendees: map[string][]string{},
+		closedMeetings: map[string][]*Meeting{},
 	})
 }
 
@@ -86,4 +88,15 @@ func (m *Memory) GetMeetingAttendees(groupID string) ([]string, error) {
 	}
 	return attendees, nil
 
+}
+func (m *Memory) CloseMeeting(groupID string) error {
+	if _, found := m.groupMeetings[groupID]; !found {
+		return NoActiveMeeting
+	}
+	if _, found := m.closedMeetings[groupID]; !found {
+		m.closedMeetings[groupID] = []*Meeting{}
+	}
+	m.closedMeetings[groupID] = append(m.closedMeetings[groupID], m.groupMeetings[groupID])
+	delete(m.groupMeetings, groupID)
+	return nil
 }

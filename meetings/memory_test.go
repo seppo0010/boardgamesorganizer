@@ -31,3 +31,19 @@ func TestAddUserToMeetingBeforeMeetingMemory(t *testing.T) {
 func TestCannotAddAfterCapacityMemory(t *testing.T) {
 	testCannotAddAfterCapacity(t, NewMemory())
 }
+
+func TestMeetingIsClosedAfterStartMemory(t *testing.T) {
+	testMeetingIsClosedAfterStart(t, NewMemory())
+}
+
+func TestMeetingCannotRSVPAfterStartMemory(t *testing.T) {
+	testMeetingCannotRSVPAfterStart(t, NewMemory())
+}
+
+func TestCreateMeetingAfterClosedMemory(t *testing.T) {
+	testCreateMeetingAfterClosed(t, NewMemory())
+}
+
+func TestHaveMultipleClosedMeetingsMemory(t *testing.T) {
+	testHaveMultipleClosedMeetings(t, NewMemory())
+}

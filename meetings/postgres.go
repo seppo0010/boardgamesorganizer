@@ -45,13 +45,13 @@ func NewPostgres(config *PostgresConfig) (*Factory, error) {
 
 func (p *Postgres) CreateMeeting(groupID string, meeting *Meeting) error {
 	query := `
-	INSERT INTO meetings (group_id, time, location, capacity)
-	VALUES ($1, $2, $3, $4)
+	INSERT INTO meetings (group_id, time, location, capacity, closed)
+	VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT DO NOTHING
 	RETURNING id;
 	`
 	id := 0
-	err := p.db.QueryRow(query, groupID, meeting.Time, meeting.Location, meeting.Capacity).Scan(&id)
+	err := p.db.QueryRow(query, groupID, meeting.Time, meeting.Location, meeting.Capacity, meeting.Closed).Scan(&id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return MeetingAlreadyActive
@@ -84,7 +84,7 @@ func (p *Postgres) DeleteMeeting(groupID string) error {
 
 func (p *Postgres) GetMeeting(groupID string) (*Meeting, error) {
 	query := `
-	SELECT time AT TIME ZONE 'GMT', location, capacity FROM meetings WHERE group_id = $1
+	SELECT time AT TIME ZONE 'GMT', location, capacity FROM meetings WHERE group_id = $1 AND closed = false
 	`
 	m := &Meeting{}
 	err := p.db.QueryRow(query, groupID).Scan(&m.Time, &m.Location, &m.Capacity)
@@ -161,5 +161,24 @@ func (p *Postgres) GetMeetingAttendees(groupID string) ([]string, error) {
 		return nil, UnexpectedError
 	}
 	return userIDs, nil
+}
 
+func (p *Postgres) CloseMeeting(groupID string) error {
+	query := `
+	UPDATE meetings SET closed = true WHERE group_id = $1 AND closed = false
+	`
+	result, err := p.db.Exec(query, groupID)
+	if err != nil {
+		log.Printf("failed to close meeting: %#v", err)
+		return UnexpectedError
+	}
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("failed to get affected rows after closing meeting: %#v", err)
+		return UnexpectedError
+	}
+	if affectedRows == 0 {
+		return NoActiveMeeting
+	}
+	return nil
 }

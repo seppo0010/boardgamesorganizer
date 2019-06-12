@@ -18,6 +18,7 @@ type Meeting struct {
 	Time     time.Time
 	Location string
 	Capacity int
+	Closed   bool
 }
 
 type Inner interface {
@@ -27,6 +28,7 @@ type Inner interface {
 	AddUserToMeeting(groupID string, userID string) error
 	RemoveUserFromMeeting(groupID string, userID string) error
 	GetMeetingAttendees(groupID string) ([]string, error)
+	CloseMeeting(groupID string) error
 }
 
 type Factory struct {
@@ -36,6 +38,25 @@ type Factory struct {
 
 func NewFactory(inner Inner) *Factory {
 	return &Factory{Inner: inner, timeFactory: ftime.NewReal()}
+}
+
+func (f *Factory) GetMeeting(groupID string) (*Meeting, error) {
+	return f.closeMeetingIfNeeded(groupID)
+}
+
+func (f *Factory) closeMeetingIfNeeded(groupID string) (*Meeting, error) {
+	meeting, err := f.Inner.GetMeeting(groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !meeting.Closed && meeting.Time.Before(f.timeFactory.Now()) {
+		err = f.CloseMeeting(groupID)
+		if err != nil {
+			return nil, err
+		}
+		return nil, NoActiveMeeting
+	}
+	return meeting, nil
 }
 
 func (f *Factory) SetTimeFactory(tf ftime.Factory) {
@@ -52,6 +73,9 @@ func (f *Factory) CanCreateMeeting(groupID string, meeting *Meeting) error {
 	return nil
 }
 func (f *Factory) CreateMeeting(groupID string, meeting *Meeting) error {
+	if _, err := f.closeMeetingIfNeeded(groupID); err != nil && err != NoActiveMeeting {
+		return err
+	}
 	if meeting.Time.Before(f.timeFactory.Now()) {
 		return MeetingIsInThePast
 	}
@@ -70,5 +94,6 @@ func (f *Factory) AddUserToMeeting(groupID string, userID string) error {
 	if meeting.Capacity > 0 && meeting.Capacity <= len(attendees) {
 		return MeetingIsFull
 	}
+	// FIXME: possible race condition if two people RSVP at the same time
 	return f.Inner.AddUserToMeeting(groupID, userID)
 }

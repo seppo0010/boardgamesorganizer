@@ -8,9 +8,10 @@ import (
 	"time"
 )
 
-func setTimeFactory(f *Factory) {
+func setTimeFactory(f *Factory) *ftime.Fake {
 	tf := &ftime.Fake{CurrentNow: time.Date(2019, 5, 1, 17, 3, 7, 0, time.UTC)}
 	f.SetTimeFactory(tf)
+	return tf
 }
 
 func testCreateGetDeleteMeeting(t *testing.T, f *Factory) {
@@ -162,4 +163,86 @@ func testCannotAddAfterCapacity(t *testing.T, f *Factory) {
 
 	err = f.AddUserToMeeting(groupID, userID2)
 	assert.Equal(err, MeetingIsFull)
+}
+
+func testMeetingIsClosedAfterStart(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	tf := setTimeFactory(f)
+	m := &Meeting{
+		Time:     time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC),
+		Capacity: 2,
+	}
+	groupID := "ashf"
+
+	err := f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	tf.CurrentNow = time.Date(2019, 5, 3, 20, 3, 7, 0, time.UTC)
+
+	_, err = f.GetMeeting(groupID)
+	assert.Equal(err, NoActiveMeeting)
+}
+
+func testMeetingCannotRSVPAfterStart(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	tf := setTimeFactory(f)
+	m := &Meeting{
+		Time:     time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC),
+		Capacity: 2,
+	}
+	groupID := "ashf"
+	userID := "oihf"
+
+	err := f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	tf.CurrentNow = time.Date(2019, 5, 3, 20, 3, 7, 0, time.UTC)
+
+	err = f.AddUserToMeeting(groupID, userID)
+	assert.Equal(err, NoActiveMeeting)
+
+	err = f.AddUserToMeeting(groupID, userID)
+	assert.Equal(err, NoActiveMeeting)
+}
+
+func testCreateMeetingAfterClosed(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	tf := setTimeFactory(f)
+	m := &Meeting{
+		Time: time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC),
+	}
+	groupID := "ashf"
+
+	err := f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	tf.CurrentNow = time.Date(2019, 5, 3, 20, 3, 7, 0, time.UTC)
+
+	m = &Meeting{
+		Time: time.Date(2019, 5, 4, 20, 3, 7, 0, time.UTC),
+	}
+	err = f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+}
+
+func testHaveMultipleClosedMeetings(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	tf := setTimeFactory(f)
+	groupID := "ashf"
+
+	m := &Meeting{Time: time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC)}
+	err := f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	tf.CurrentNow = time.Date(2019, 5, 3, 20, 3, 7, 0, time.UTC)
+
+	m = &Meeting{Time: time.Date(2019, 5, 4, 20, 3, 7, 0, time.UTC)}
+	err = f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	tf.CurrentNow = time.Date(2019, 5, 5, 20, 3, 7, 0, time.UTC)
+
+	m = &Meeting{Time: time.Date(2019, 5, 6, 20, 3, 7, 0, time.UTC)}
+	err = f.CreateMeeting(groupID, m)
+	assert.NoError(err)
 }

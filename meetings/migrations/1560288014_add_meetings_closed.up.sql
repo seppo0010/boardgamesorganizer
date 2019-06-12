@@ -1,0 +1,1 @@
+ALTER TABLE meetings ADD COLUMN closed BOOL NOT NULL default FALSE;

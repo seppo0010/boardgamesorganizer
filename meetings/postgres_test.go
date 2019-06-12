@@ -58,3 +58,19 @@ func TestAddUserToMeetingBeforeMeetingPostgres(t *testing.T) {
 func TestCannotAddAfterCapacityPostgres(t *testing.T) {
 	testCannotAddAfterCapacity(t, getPostgres(t))
 }
+
+func TestMeetingIsClosedAfterStartPostgres(t *testing.T) {
+	testMeetingIsClosedAfterStart(t, getPostgres(t))
+}
+
+func TestMeetingCannotRSVPAfterStartPostgres(t *testing.T) {
+	testMeetingCannotRSVPAfterStart(t, getPostgres(t))
+}
+
+func TestCreateMeetingAfterClosedPostgres(t *testing.T) {
+	testCreateMeetingAfterClosed(t, getPostgres(t))
+}
+
+func TestHaveMultipleClosedMeetingsPostgres(t *testing.T) {
+	testHaveMultipleClosedMeetings(t, getPostgres(t))
+}
