@@ -246,3 +246,29 @@ func testHaveMultipleClosedMeetings(t *testing.T, f *Factory) {
 	err = f.CreateMeeting(groupID, m)
 	assert.NoError(err)
 }
+
+func testMeetingAttendeesData(t *testing.T, f *Factory) {
+	assert := assert.New(t)
+	setTimeFactory(f)
+	groupID := "ashf"
+
+	attendeesData := []string{"hello", "world"}
+	err := f.SetMeetingAttendeesData(groupID, attendeesData)
+	assert.Equal(err, NoActiveMeeting)
+
+	m := &Meeting{Time: time.Date(2019, 5, 2, 20, 3, 7, 0, time.UTC)}
+	err = f.CreateMeeting(groupID, m)
+	assert.NoError(err)
+
+	data := []string{}
+	err = f.GetMeetingAttendeesData(groupID, &data)
+	assert.NoError(err)
+	assert.Equal(data, []string{})
+
+	err = f.SetMeetingAttendeesData(groupID, attendeesData)
+	assert.NoError(err)
+
+	err = f.GetMeetingAttendeesData(groupID, &data)
+	assert.NoError(err)
+	assert.Equal(data, attendeesData)
+}

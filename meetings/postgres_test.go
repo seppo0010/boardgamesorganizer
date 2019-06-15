@@ -74,3 +74,7 @@ func TestCreateMeetingAfterClosedPostgres(t *testing.T) {
 func TestHaveMultipleClosedMeetingsPostgres(t *testing.T) {
 	testHaveMultipleClosedMeetings(t, getPostgres(t))
 }
+
+func TestMeetingAttendeesDataPostgres(t *testing.T) {
+	testMeetingAttendeesData(t, getPostgres(t))
+}

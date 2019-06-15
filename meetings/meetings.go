@@ -25,6 +25,8 @@ type Inner interface {
 	CreateMeeting(groupID string, meeting *Meeting) error
 	DeleteMeeting(groupID string) error
 	GetMeeting(groupID string) (*Meeting, error)
+	SetMeetingAttendeesData(groupID string, data interface{}) error
+	GetMeetingAttendeesData(groupID string, data interface{}) error
 	AddUserToMeeting(groupID string, userID string) error
 	RemoveUserFromMeeting(groupID string, userID string) error
 	GetMeetingAttendees(groupID string) ([]string, error)

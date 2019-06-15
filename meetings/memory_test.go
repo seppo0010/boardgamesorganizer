@@ -47,3 +47,7 @@ func TestCreateMeetingAfterClosedMemory(t *testing.T) {
 func TestHaveMultipleClosedMeetingsMemory(t *testing.T) {
 	testHaveMultipleClosedMeetings(t, NewMemory())
 }
+
+func TestMeetingAttendeesDataMemory(t *testing.T) {
+	testMeetingAttendeesData(t, NewMemory())
+}

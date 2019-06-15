@@ -2,6 +2,7 @@ package meetings
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -179,6 +180,57 @@ func (p *Postgres) CloseMeeting(groupID string) error {
 	}
 	if affectedRows == 0 {
 		return NoActiveMeeting
+	}
+	return nil
+}
+
+func (p *Postgres) SetMeetingAttendeesData(groupID string, data interface{}) error {
+	v, err := json.Marshal(data)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	query := `
+	UPDATE meetings SET attendees_data = $1 WHERE group_id = $2 AND closed = false
+	`
+	result, err := p.db.Exec(query, v, groupID)
+	if err != nil {
+		log.Printf("failed to set meeting attendees data: %#v", err)
+		return UnexpectedError
+	}
+	affectedRows, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("failed to get affected rows after setting meeting attendees data: %#v", err)
+		return UnexpectedError
+	}
+	if affectedRows == 0 {
+		return NoActiveMeeting
+	}
+	return nil
+}
+
+func (p *Postgres) GetMeetingAttendeesData(groupID string, v interface{}) error {
+	query := `
+	SELECT attendees_data FROM meetings WHERE group_id = $1 AND closed = false
+	`
+	var data interface{}
+	err := p.db.QueryRow(query, groupID).Scan(&data)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NoActiveMeeting
+		}
+		log.Printf("failed to get meeting attendees data: %#v", err)
+		return UnexpectedError
+	}
+	bytearray, ok := data.(string)
+	if !ok {
+		return nil
+	}
+	err = json.Unmarshal([]byte(bytearray), v)
+	if err != nil {
+		log.Print(err)
+		return err
 	}
 	return nil
 }
