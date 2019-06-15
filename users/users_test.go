@@ -156,3 +156,24 @@ func testGetNoExistingGroup(t *testing.T, f Factory) {
 	assert.Nil(ext)
 	assert.Equal(err, GroupNotFound)
 }
+
+func testGetUsers(t *testing.T, f Factory) {
+	assert := assert.New(t)
+	u1 := &ExternalUser{
+		ID:     "ABC",
+		Source: SourceTelegram,
+	}
+	ID, err := f.GetOrCreateUser(u1)
+	assert.NoError(err)
+	u2 := &ExternalUser{
+		ID:     "ABC",
+		Source: SourceCustom,
+	}
+	ID2, err := f.GetOrCreateUser(u2)
+	assert.NoError(err)
+
+	users, err := f.GetUsers([]string{ID, ID2, "229383"})
+	assert.NoError(err)
+	assert.Equal(users[ID], u1)
+	assert.Equal(users[ID2], u2)
+}

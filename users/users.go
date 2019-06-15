@@ -27,4 +27,5 @@ type Factory interface {
 	GetExternalUser(userID string) (*ExternalUser, error)
 	GetOrCreateGroup(group *ExternalGroup) (string, error)
 	GetExternalGroup(groupID string) (*ExternalGroup, error)
+	GetUsers(userIDs []string) (map[string]*ExternalUser, error)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/lib/pq"
 	"log"
 	"strconv"
+	"strings"
 )
 
 type PostgresConfig struct {
@@ -114,4 +115,41 @@ func (p *Postgres) GetExternalGroup(groupID string) (*ExternalGroup, error) {
 		return nil, err
 	}
 	return ext, nil
+}
+
+func (p *Postgres) GetUsers(userIDs []string) (map[string]*ExternalUser, error) {
+	qs := make([]string, len(userIDs))
+	for i, _ := range userIDs {
+		qs[i] = fmt.Sprintf("$%d", i+1)
+	}
+	query := fmt.Sprintf(`
+	SELECT id, external_id, source FROM users WHERE id IN (%s)
+	`, strings.Join(qs, ","))
+
+	userIDsInterface := make([]interface{}, len(userIDs))
+	for i := range userIDs {
+		userIDsInterface[i], _ = strconv.Atoi(userIDs[i])
+	}
+	rows, err := p.db.Query(query, userIDsInterface...)
+	if err != nil {
+		log.Printf("failed to get users: %#v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	retval := map[string]*ExternalUser{}
+	for rows.Next() {
+		var id, externalID string
+		var source int
+		if err := rows.Scan(&id, &externalID, &source); err != nil {
+			log.Printf("failed to get next user: %#v", err)
+			return nil, err
+		}
+		retval[id] = &ExternalUser{ID: externalID, Source: Source(source)}
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("failed to get close users: %#v", err)
+		return nil, err
+	}
+	return retval, nil
 }

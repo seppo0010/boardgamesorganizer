@@ -78,3 +78,7 @@ func TestGetExistingGroupPostgres(t *testing.T) {
 func TestGetNoExistingGroupPostgres(t *testing.T) {
 	testGetNoExistingGroup(t, getPostgres(t))
 }
+
+func TestGetUsersPostgres(t *testing.T) {
+	testGetUsers(t, getPostgres(t))
+}

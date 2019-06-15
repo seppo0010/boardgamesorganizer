@@ -63,3 +63,8 @@ func TestGetNoExistingGroupMemory(t *testing.T) {
 	t.Parallel()
 	testGetNoExistingGroup(t, NewMemory())
 }
+
+func TestGetUsersMemory(t *testing.T) {
+	t.Parallel()
+	testGetUsers(t, NewMemory())
+}

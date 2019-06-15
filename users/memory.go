@@ -51,3 +51,13 @@ func (m *Memory) GetExternalGroup(groupID string) (*ExternalGroup, error) {
 	}
 	return group, nil
 }
+
+func (m *Memory) GetUsers(userIDs []string) (map[string]*ExternalUser, error) {
+	retval := map[string]*ExternalUser{}
+	for _, userID := range userIDs {
+		if user, found := m.users[userID]; found {
+			retval[userID] = user
+		}
+	}
+	return retval, nil
+}
