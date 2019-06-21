@@ -13,8 +13,9 @@ var UserNotFound = errors.New("User not found")
 var GroupNotFound = errors.New("Group not found")
 
 type ExternalUser struct {
-	ID     string
-	Source Source
+	ID          string
+	Source      Source
+	DisplayName string
 }
 
 type ExternalGroup struct {

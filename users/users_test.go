@@ -18,8 +18,9 @@ func testCreateUser(t *testing.T, f Factory) {
 func testCreateGetUser(t *testing.T, f Factory) {
 	assert := assert.New(t)
 	ext := ExternalUser{
-		ID:     "ABC",
-		Source: SourceTelegram,
+		ID:          "ABC",
+		Source:      SourceTelegram,
+		DisplayName: "yoooooooo",
 	}
 	ID, err := f.GetOrCreateUser(&ext)
 	assert.NoError(err)
@@ -61,8 +62,9 @@ func testCreateSecondUserSource(t *testing.T, f Factory) {
 func testGetExistingUser(t *testing.T, f Factory) {
 	assert := assert.New(t)
 	ext := &ExternalUser{
-		ID:     "ABC",
-		Source: SourceTelegram,
+		ID:          "ABC",
+		Source:      SourceTelegram,
+		DisplayName: "yoooooooo",
 	}
 	ID, err := f.GetOrCreateUser(ext)
 	assert.NoError(err)

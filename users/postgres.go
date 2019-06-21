@@ -47,14 +47,14 @@ func NewPostgres(config *PostgresConfig) (*Postgres, error) {
 
 func (p *Postgres) GetOrCreateUser(user *ExternalUser) (string, error) {
 	query := `
-	INSERT INTO users (external_id, source)
-	VALUES ($1, $2)
+	INSERT INTO users (external_id, source, display_name)
+	VALUES ($1, $2, $3)
 	ON CONFLICT(external_id, source)
-		DO UPDATE SET source = $2
+		DO UPDATE SET display_name = $3
 	RETURNING id;
 	`
 	var userid int
-	err := p.db.QueryRow(query, user.ID, int(user.Source)).Scan(&userid)
+	err := p.db.QueryRow(query, user.ID, int(user.Source), user.DisplayName).Scan(&userid)
 	if err != nil {
 		log.Print("failed to get or create user")
 		return "", err
@@ -64,10 +64,10 @@ func (p *Postgres) GetOrCreateUser(user *ExternalUser) (string, error) {
 
 func (p *Postgres) GetExternalUser(userID string) (*ExternalUser, error) {
 	query := `
-	SELECT external_id, source FROM users WHERE id = $1
+	SELECT external_id, source, display_name FROM users WHERE id = $1
 	`
 	ext := &ExternalUser{}
-	err := p.db.QueryRow(query, userID).Scan(&ext.ID, &ext.Source)
+	err := p.db.QueryRow(query, userID).Scan(&ext.ID, &ext.Source, &ext.DisplayName)
 	if err != nil {
 		if err, ok := err.(*pq.Error); ok && err.Routine == "pg_atoi" {
 			return nil, UserNotFound
@@ -123,7 +123,7 @@ func (p *Postgres) GetUsers(userIDs []string) (map[string]*ExternalUser, error) 
 		qs[i] = fmt.Sprintf("$%d", i+1)
 	}
 	query := fmt.Sprintf(`
-	SELECT id, external_id, source FROM users WHERE id IN (%s)
+	SELECT id, external_id, source, display_name FROM users WHERE id IN (%s)
 	`, strings.Join(qs, ","))
 
 	userIDsInterface := make([]interface{}, len(userIDs))
@@ -139,13 +139,13 @@ func (p *Postgres) GetUsers(userIDs []string) (map[string]*ExternalUser, error) 
 
 	retval := map[string]*ExternalUser{}
 	for rows.Next() {
-		var id, externalID string
+		var id, externalID, displayName string
 		var source int
-		if err := rows.Scan(&id, &externalID, &source); err != nil {
+		if err := rows.Scan(&id, &externalID, &source, &displayName); err != nil {
 			log.Printf("failed to get next user: %#v", err)
 			return nil, err
 		}
-		retval[id] = &ExternalUser{ID: externalID, Source: Source(source)}
+		retval[id] = &ExternalUser{ID: externalID, Source: Source(source), DisplayName: displayName}
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("failed to get close users: %#v", err)
