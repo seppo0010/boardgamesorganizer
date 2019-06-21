@@ -59,6 +59,23 @@ func parseQuery(input string) (*meetings.Meeting, error) {
 	}, nil
 }
 
+func formatUserDisplayName(user *tb.User) string {
+	if user.Username != "" {
+		if user.FirstName == "" && user.LastName == "" {
+			return user.Username
+		} else if user.FirstName == "" {
+			return fmt.Sprintf("%s (%s)", user.Username, user.LastName)
+		}
+		return fmt.Sprintf("%s (%s %s)", user.Username, user.FirstName, user.LastName)
+	}
+	if user.FirstName == "" && user.LastName == "" {
+		return "(unknown user)"
+	} else if user.FirstName == "" {
+		return user.LastName
+	}
+	return user.FirstName
+}
+
 func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 	var b *tb.Bot
 	b, err := tb.NewBot(tb.Settings{
@@ -82,7 +99,11 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 
 				going := upd.Callback.Data == goingCallbackData
 
-				userID, err := uf.GetOrCreateUser(&users.ExternalUser{Source: users.SourceTelegram, ID: strconv.Itoa(upd.Callback.Sender.ID)})
+				userID, err := uf.GetOrCreateUser(&users.ExternalUser{
+					Source:      users.SourceTelegram,
+					ID:          strconv.Itoa(upd.Callback.Sender.ID),
+					DisplayName: formatUserDisplayName(upd.Callback.Sender),
+				})
 				if err != nil {
 					return respondEmpty()
 				}
