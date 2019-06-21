@@ -20,10 +20,13 @@ var defaultLocation *time.Location
 const goingResponse = "OK, going!"
 const notGoingResponse = "OK, not going :("
 const goingCallbackData = "\fgoing"
+const goingPlusOneCallbackData = "\fgoingPlusOne"
 const notGoingCallbackData = "\fnotGoing"
 const goingIdentifier = "going"
+const goingPlusOneIdentifier = "goingPlusOne"
 const notGoingIdentifier = "notGoing"
 const goingLabel = "Going"
+const goingPlusOneLabel = "Going+1"
 const notGoingLabel = "Not going"
 const nextEventTitle = "Next event!"
 const nextEventDescription = "Where: %s, When: %s"
@@ -34,6 +37,11 @@ const invalidInputTitle = "Invalid input"
 type editableMessage struct {
 	MessageID string
 	ChatID    int64
+}
+
+type attendeeUser struct {
+	user   *users.ExternalUser
+	amount int
 }
 
 func (e *editableMessage) MessageSig() (messageID string, chatID int64) {
@@ -50,12 +58,19 @@ func init() {
 	}
 }
 
-func meetingText(meeting *meetings.Meeting, users []*users.ExternalUser) string {
+func meetingText(meeting *meetings.Meeting, attendeeUsers []*attendeeUser) string {
 	usersText := ""
-	if users != nil && len(users) > 0 {
+	if attendeeUsers != nil && len(attendeeUsers) > 0 {
 		usersText = "\nAttendees:\n"
-		for _, user := range users {
-			usersText += fmt.Sprintf("* %s\n", user.DisplayName)
+		for _, au := range attendeeUsers {
+			if au.amount <= 0 {
+				continue
+			}
+			if au.amount == 1 {
+				usersText += fmt.Sprintf("* %s\n", au.user.DisplayName)
+				continue
+			}
+			usersText += fmt.Sprintf("* %s (+%d)\n", au.user.DisplayName, au.amount-1)
 		}
 	}
 	return fmt.Sprintf(meetingCreatedText, meeting.Time.In(defaultLocation).Format(meetingCreatedDateFormat), meeting.Location) + usersText
@@ -66,6 +81,10 @@ func meetingOptions() *tb.SendOptions {
 		Unique: goingIdentifier,
 		Text:   goingLabel,
 	}
+	goingPlusOneButton := tb.InlineButton{
+		Unique: goingPlusOneIdentifier,
+		Text:   goingPlusOneLabel,
+	}
 	notGoingButton := tb.InlineButton{
 		Unique: notGoingIdentifier,
 		Text:   notGoingLabel,
@@ -75,6 +94,7 @@ func meetingOptions() *tb.SendOptions {
 			InlineKeyboard: [][]tb.InlineButton{
 				[]tb.InlineButton{
 					goingButton,
+					goingPlusOneButton,
 					notGoingButton,
 				},
 			},
@@ -136,11 +156,18 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 				}
 				respondEmpty := func() bool { return respond("") }
 
-				if upd.Callback.Data != goingCallbackData && upd.Callback.Data != notGoingCallbackData {
+				if upd.Callback.Data != goingCallbackData &&
+					upd.Callback.Data != notGoingCallbackData &&
+					upd.Callback.Data != goingPlusOneCallbackData {
 					return true
 				}
 
-				going := upd.Callback.Data == goingCallbackData
+				amount := 0
+				if upd.Callback.Data == goingCallbackData {
+					amount = 1
+				} else if upd.Callback.Data == goingPlusOneCallbackData {
+					amount = 2
+				}
 
 				userID, err := uf.GetOrCreateUser(&users.ExternalUser{
 					Source:      users.SourceTelegram,
@@ -156,11 +183,7 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 					return respondEmpty()
 				}
 
-				if going {
-					err = mf.UserRSVPMeeting(groupID, &meetings.Attendee{UserID: userID, Amount: 1})
-				} else {
-					err = mf.UserRSVPMeeting(groupID, &meetings.Attendee{UserID: userID, Amount: 1})
-				}
+				err = mf.UserRSVPMeeting(groupID, &meetings.Attendee{UserID: userID, Amount: amount})
 				if err != nil {
 					if err == meetings.NoActiveMeeting {
 						return respond(err.Error())
@@ -168,7 +191,7 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 					return respondEmpty()
 				}
 
-				if going {
+				if amount > 0 {
 					respond(goingResponse)
 				} else {
 					respond(notGoingResponse)
@@ -180,6 +203,7 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 					log.Print(err)
 					return false
 				}
+
 				if meetingMessage.MessageID != "" && meetingMessage.ChatID != 0 {
 					meeting, err := mf.GetMeeting(groupID)
 					if err != nil {
@@ -200,14 +224,15 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 						log.Print(err)
 						return false
 					}
-					users := make([]*users.ExternalUser, 0, len(usersMap))
-					for _, user := range usersMap {
-						users = append(users, user)
+					users := make([]*attendeeUser, 0, len(usersMap))
+					for _, attendee := range attendees {
+						if user, found := usersMap[attendee.UserID]; found {
+							users = append(users, &attendeeUser{user: user, amount: attendee.Amount})
+						}
 					}
 					b.Edit(meetingMessage, meetingText(meeting, users), meetingOptions())
 				}
 				return false
-
 			}
 			return true
 		}),
