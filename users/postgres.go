@@ -118,6 +118,9 @@ func (p *Postgres) GetExternalGroup(groupID string) (*ExternalGroup, error) {
 }
 
 func (p *Postgres) GetUsers(userIDs []string) (map[string]*ExternalUser, error) {
+	if len(userIDs) == 0 {
+		return map[string]*ExternalUser{}, nil
+	}
 	qs := make([]string, len(userIDs))
 	for i, _ := range userIDs {
 		qs[i] = fmt.Sprintf("$%d", i+1)

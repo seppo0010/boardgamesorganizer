@@ -31,11 +31,54 @@ const meetingCreatedText = "Meeting created for %s at %s!"
 const meetingCreatedDateFormat = "Monday 02 Jan 2006 15:04"
 const invalidInputTitle = "Invalid input"
 
+type editableMessage struct {
+	MessageID string
+	ChatID    int64
+}
+
+func (e *editableMessage) MessageSig() (messageID string, chatID int64) {
+	messageID = e.MessageID
+	chatID = e.ChatID
+	return
+}
+
 func init() {
 	var err error
 	defaultLocation, err = time.LoadLocation("America/Argentina/Buenos_Aires") // FIXME: config timezone?
 	if err != nil {
 		panic(err)
+	}
+}
+
+func meetingText(meeting *meetings.Meeting, users []*users.ExternalUser) string {
+	usersText := ""
+	if users != nil && len(users) > 0 {
+		usersText = "\nAttendees:\n"
+		for _, user := range users {
+			usersText += fmt.Sprintf("* %s\n", user.DisplayName)
+		}
+	}
+	return fmt.Sprintf(meetingCreatedText, meeting.Time.In(defaultLocation).Format(meetingCreatedDateFormat), meeting.Location) + usersText
+}
+
+func meetingOptions() *tb.SendOptions {
+	goingButton := tb.InlineButton{
+		Unique: goingIdentifier,
+		Text:   goingLabel,
+	}
+	notGoingButton := tb.InlineButton{
+		Unique: notGoingIdentifier,
+		Text:   notGoingLabel,
+	}
+	return &tb.SendOptions{
+		ReplyMarkup: &tb.ReplyMarkup{
+			InlineKeyboard: [][]tb.InlineButton{
+				[]tb.InlineButton{
+					goingButton,
+					notGoingButton,
+				},
+			},
+		},
 	}
 }
 
@@ -126,9 +169,41 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 				}
 
 				if going {
-					return respond(goingResponse)
+					respond(goingResponse)
+				} else {
+					respond(notGoingResponse)
 				}
-				return respond(notGoingResponse)
+
+				meetingMessage := &editableMessage{}
+				err = mf.GetMeetingAttendeesData(groupID, meetingMessage)
+				if err != nil {
+					log.Print(err)
+					return false
+				}
+				if meetingMessage.MessageID != "" && meetingMessage.ChatID != 0 {
+					meeting, err := mf.GetMeeting(groupID)
+					if err != nil {
+						log.Print(err)
+						return false
+					}
+					attendees, err := mf.GetMeetingAttendees(groupID)
+					if err != nil {
+						log.Print(err)
+						return false
+					}
+					usersMap, err := uf.GetUsers(attendees)
+					if err != nil {
+						log.Print(err)
+						return false
+					}
+					users := make([]*users.ExternalUser, 0, len(usersMap))
+					for _, user := range usersMap {
+						users = append(users, user)
+					}
+					b.Edit(meetingMessage, meetingText(meeting, users), meetingOptions())
+				}
+				return false
+
 			}
 			return true
 		}),
@@ -169,7 +244,7 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 		})
 
 		if err != nil {
-			fmt.Println(err)
+			log.Print(err)
 		}
 
 	})
@@ -196,24 +271,19 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 			}
 			return
 		}
-		goingButton := tb.InlineButton{
-			Unique: goingIdentifier,
-			Text:   goingLabel,
+		message, err := b.Send(m.Chat, meetingText(meeting, nil), meetingOptions())
+		if err != nil {
+			log.Print(err)
+			return
 		}
-		notGoingButton := tb.InlineButton{
-			Unique: notGoingIdentifier,
-			Text:   notGoingLabel,
-		}
-		b.Send(m.Chat, fmt.Sprintf(meetingCreatedText, meeting.Time.In(defaultLocation).Format(meetingCreatedDateFormat), meeting.Location), &tb.SendOptions{
-			ReplyMarkup: &tb.ReplyMarkup{
-				InlineKeyboard: [][]tb.InlineButton{
-					[]tb.InlineButton{
-						goingButton,
-						notGoingButton,
-					},
-				},
-			},
+		err = mf.SetMeetingAttendeesData(groupID, &editableMessage{
+			MessageID: strconv.Itoa(message.ID),
+			ChatID:    m.Chat.ID,
 		})
+		if err != nil {
+			log.Print(err)
+			return
+		}
 	})
 
 	b.Start()
