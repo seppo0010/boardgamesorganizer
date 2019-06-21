@@ -157,9 +157,9 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 				}
 
 				if going {
-					err = mf.AddUserToMeeting(groupID, userID)
+					err = mf.UserRSVPMeeting(groupID, &meetings.Attendee{UserID: userID, Amount: 1})
 				} else {
-					err = mf.RemoveUserFromMeeting(groupID, userID)
+					err = mf.UserRSVPMeeting(groupID, &meetings.Attendee{UserID: userID, Amount: 1})
 				}
 				if err != nil {
 					if err == meetings.NoActiveMeeting {
@@ -191,7 +191,11 @@ func startTelegram(token string, mf *meetings.Factory, uf users.Factory) error {
 						log.Print(err)
 						return false
 					}
-					usersMap, err := uf.GetUsers(attendees)
+					attendeesUserID := make([]string, len(attendees))
+					for i, att := range attendees {
+						attendeesUserID[i] = att.UserID
+					}
+					usersMap, err := uf.GetUsers(attendeesUserID)
 					if err != nil {
 						log.Print(err)
 						return false

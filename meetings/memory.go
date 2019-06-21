@@ -7,24 +7,15 @@ import (
 
 type Memory struct {
 	groupMeetings        map[string]*Meeting
-	groupAttendees       map[string][]string
+	groupAttendees       map[string][]*Attendee
 	closedMeetings       map[string][]*Meeting
 	meetingAttendeesData map[string][]byte
-}
-
-func stringInSliceIndex(a string, list []string) int {
-	for i, b := range list {
-		if b == a {
-			return i
-		}
-	}
-	return -1
 }
 
 func NewMemory() *Factory {
 	return NewFactory(&Memory{
 		groupMeetings:        map[string]*Meeting{},
-		groupAttendees:       map[string][]string{},
+		groupAttendees:       map[string][]*Attendee{},
 		closedMeetings:       map[string][]*Meeting{},
 		meetingAttendeesData: map[string][]byte{},
 	})
@@ -54,44 +45,39 @@ func (m *Memory) GetMeeting(groupID string) (*Meeting, error) {
 	return meeting, nil
 }
 
-func (m *Memory) AddUserToMeeting(groupID string, userID string) error {
+func (m *Memory) UserRSVPMeeting(groupID string, attendee *Attendee) error {
 	if _, found := m.groupMeetings[groupID]; !found {
 		return NoActiveMeeting
 	}
 	if attendees, found := m.groupAttendees[groupID]; found {
-		if stringInSliceIndex(userID, attendees) != -1 {
-			return UserAlreadyAttendsMeeting
+		for _, att := range attendees {
+			if attendee.UserID == att.UserID {
+				if attendee.Amount == att.Amount {
+					if att.Amount == 0 {
+						return UserDoesNotAttendMeeting
+					}
+					return UserAlreadyAttendsMeeting
+				}
+				att.Amount = attendee.Amount
+				return nil
+			}
 		}
 	} else {
-		m.groupAttendees[groupID] = []string{}
+		m.groupAttendees[groupID] = []*Attendee{}
 	}
-	m.groupAttendees[groupID] = append(m.groupAttendees[groupID], userID)
-	return nil
-}
-func (m *Memory) RemoveUserFromMeeting(groupID string, userID string) error {
-	if _, found := m.groupMeetings[groupID]; !found {
-		return NoActiveMeeting
-	}
-	attendees, found := m.groupAttendees[groupID]
-	if !found {
+	if attendee.Amount == 0 {
 		return UserDoesNotAttendMeeting
 	}
-	index := stringInSliceIndex(userID, attendees)
-	if index == -1 {
-		return UserDoesNotAttendMeeting
-	}
-	attendees[index] = attendees[len(attendees)-1]
-	m.groupAttendees[groupID] = attendees[:len(attendees)-1]
+	m.groupAttendees[groupID] = append(m.groupAttendees[groupID], attendee)
 	return nil
 }
-
-func (m *Memory) GetMeetingAttendees(groupID string) ([]string, error) {
+func (m *Memory) GetMeetingAttendees(groupID string) ([]*Attendee, error) {
 	if _, found := m.groupMeetings[groupID]; !found {
 		return nil, NoActiveMeeting
 	}
 	attendees, found := m.groupAttendees[groupID]
 	if !found {
-		return []string{}, nil
+		return []*Attendee{}, nil
 	}
 	return attendees, nil
 

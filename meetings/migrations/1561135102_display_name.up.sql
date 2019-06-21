@@ -1,0 +1,1 @@
+ALTER TABLE attendees ADD COLUMN amount INT DEFAULT 1;

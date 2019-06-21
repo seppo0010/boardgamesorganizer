@@ -21,15 +21,19 @@ type Meeting struct {
 	Closed   bool
 }
 
+type Attendee struct {
+	UserID string
+	Amount int
+}
+
 type Inner interface {
 	CreateMeeting(groupID string, meeting *Meeting) error
 	DeleteMeeting(groupID string) error
 	GetMeeting(groupID string) (*Meeting, error)
 	SetMeetingAttendeesData(groupID string, data interface{}) error
 	GetMeetingAttendeesData(groupID string, data interface{}) error
-	AddUserToMeeting(groupID string, userID string) error
-	RemoveUserFromMeeting(groupID string, userID string) error
-	GetMeetingAttendees(groupID string) ([]string, error)
+	UserRSVPMeeting(groupID string, attendee *Attendee) error
+	GetMeetingAttendees(groupID string) ([]*Attendee, error)
 	CloseMeeting(groupID string) error
 }
 
@@ -84,7 +88,7 @@ func (f *Factory) CreateMeeting(groupID string, meeting *Meeting) error {
 	return f.Inner.CreateMeeting(groupID, meeting)
 }
 
-func (f *Factory) AddUserToMeeting(groupID string, userID string) error {
+func (f *Factory) UserRSVPMeeting(groupID string, attendee *Attendee) error {
 	meeting, err := f.GetMeeting(groupID)
 	if err != nil {
 		return err
@@ -93,9 +97,15 @@ func (f *Factory) AddUserToMeeting(groupID string, userID string) error {
 	if err != nil {
 		return err
 	}
-	if meeting.Capacity > 0 && meeting.Capacity <= len(attendees) {
+	taken := 0
+	for _, att := range attendees {
+		if att.UserID != attendee.UserID {
+			taken += att.Amount
+		}
+	}
+	if meeting.Capacity > 0 && meeting.Capacity < taken+attendee.Amount {
 		return MeetingIsFull
 	}
 	// FIXME: possible race condition if two people RSVP at the same time
-	return f.Inner.AddUserToMeeting(groupID, userID)
+	return f.Inner.UserRSVPMeeting(groupID, attendee)
 }

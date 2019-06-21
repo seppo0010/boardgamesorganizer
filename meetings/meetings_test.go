@@ -8,6 +8,18 @@ import (
 	"time"
 )
 
+type byUserID []*Attendee
+
+func (s byUserID) Len() int {
+	return len(s)
+}
+func (s byUserID) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byUserID) Less(i, j int) bool {
+	return s[i].UserID < s[j].UserID
+}
+
 func setTimeFactory(f *Factory) *ftime.Fake {
 	tf := &ftime.Fake{CurrentNow: time.Date(2019, 5, 1, 17, 3, 7, 0, time.UTC)}
 	f.SetTimeFactory(tf)
@@ -52,19 +64,19 @@ func testAddRemoveAttendee(t *testing.T, f *Factory) {
 	err := f.CreateMeeting(groupID, m)
 	assert.NoError(err)
 
-	err = f.RemoveUserFromMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 0})
 	assert.Equal(err, UserDoesNotAttendMeeting)
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.NoError(err)
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.Equal(err, UserAlreadyAttendsMeeting)
 
-	err = f.RemoveUserFromMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 0})
 	assert.NoError(err)
 
-	err = f.RemoveUserFromMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 0})
 	assert.Equal(err, UserDoesNotAttendMeeting)
 }
 
@@ -83,24 +95,25 @@ func testAttendees(t *testing.T, f *Factory) {
 
 	attendees, err := f.GetMeetingAttendees(groupID)
 	assert.NoError(err)
-	assert.Equal(attendees, []string{})
+	assert.Equal(attendees, []*Attendee{})
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.NoError(err)
 
 	attendees, err = f.GetMeetingAttendees(groupID)
 	assert.NoError(err)
-	assert.Equal(attendees, []string{userID})
+	assert.Equal(attendees, []*Attendee{&Attendee{UserID: userID, Amount: 1}})
 
-	err = f.AddUserToMeeting(groupID, userID2)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID2, Amount: 1})
 	assert.NoError(err)
 
 	attendees, err = f.GetMeetingAttendees(groupID)
-	sort.Strings(attendees)
-	expectedAttendees := []string{userID, userID2}
-	sort.Strings(expectedAttendees)
 	assert.NoError(err)
-	assert.Equal(attendees, expectedAttendees)
+	attendeesByUserID := byUserID(attendees)
+	sort.Sort(attendeesByUserID)
+	expectedAttendees := byUserID{&Attendee{UserID: userID, Amount: 1}, &Attendee{UserID: userID2, Amount: 1}}
+	sort.Sort(expectedAttendees)
+	assert.Equal(attendeesByUserID, expectedAttendees)
 }
 
 func testMeetingAlreadyActive(t *testing.T, f *Factory) {
@@ -130,13 +143,13 @@ func testMeetingInThePast(t *testing.T, f *Factory) {
 	assert.Equal(err, MeetingIsInThePast)
 }
 
-func testAddUserToMeetingBeforeMeeting(t *testing.T, f *Factory) {
+func testUserRSVPMeeting(t *testing.T, f *Factory) {
 	assert := assert.New(t)
 	setTimeFactory(f)
 	groupID := "ashf"
 	userID := "oihf"
 
-	err := f.AddUserToMeeting(groupID, userID)
+	err := f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.Equal(err, NoActiveMeeting)
 }
 
@@ -155,13 +168,13 @@ func testCannotAddAfterCapacity(t *testing.T, f *Factory) {
 	err := f.CreateMeeting(groupID, m)
 	assert.NoError(err)
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.NoError(err)
 
-	err = f.AddUserToMeeting(groupID, userID1)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID1, Amount: 1})
 	assert.NoError(err)
 
-	err = f.AddUserToMeeting(groupID, userID2)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID2, Amount: 1})
 	assert.Equal(err, MeetingIsFull)
 }
 
@@ -198,10 +211,10 @@ func testMeetingCannotRSVPAfterStart(t *testing.T, f *Factory) {
 
 	tf.CurrentNow = time.Date(2019, 5, 3, 20, 3, 7, 0, time.UTC)
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.Equal(err, NoActiveMeeting)
 
-	err = f.AddUserToMeeting(groupID, userID)
+	err = f.UserRSVPMeeting(groupID, &Attendee{UserID: userID, Amount: 1})
 	assert.Equal(err, NoActiveMeeting)
 }
 

@@ -100,47 +100,50 @@ func (p *Postgres) GetMeeting(groupID string) (*Meeting, error) {
 	return m, nil
 }
 
-func (p *Postgres) AddUserToMeeting(groupID string, userID string) error {
+func (p *Postgres) UserRSVPMeeting(groupID string, attendee *Attendee) error {
+	if attendee.Amount == 0 {
+		query := `
+       DELETE FROM attendees WHERE group_id = $1 AND user_id = $2
+       `
+		result, err := p.db.Exec(query, groupID, attendee.UserID)
+		if err != nil {
+			log.Printf("failed to delete attendee: %#v", err)
+			return UnexpectedError
+		}
+		affectedRows, err := result.RowsAffected()
+		if err != nil {
+			log.Printf("failed to get affected rows after deleting attendee: %#v", err)
+			return UnexpectedError
+		}
+		if affectedRows == 0 {
+			return UserDoesNotAttendMeeting
+		}
+		return nil
+	}
 	query := `
-	INSERT INTO attendees (group_id, user_id)
-	VALUES ($1, $2)
-	ON CONFLICT DO NOTHING
+	INSERT INTO attendees (group_id, user_id, amount)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (group_id, user_id) DO UPDATE SET amount = $3 WHERE attendees.amount != $3
 	RETURNING id;
 	`
-	id := 0
-	err := p.db.QueryRow(query, groupID, userID).Scan(&id)
+	result, err := p.db.Exec(query, groupID, attendee.UserID, attendee.Amount)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return UserAlreadyAttendsMeeting
-		}
 		log.Printf("failed to add attendee: %#v", err)
-		return UnexpectedError
-	}
-	return nil
-}
-func (p *Postgres) RemoveUserFromMeeting(groupID string, userID string) error {
-	query := `
-	DELETE FROM attendees WHERE group_id = $1 AND user_id = $2
-	`
-	result, err := p.db.Exec(query, groupID, userID)
-	if err != nil {
-		log.Printf("failed to delete attendee: %#v", err)
 		return UnexpectedError
 	}
 	affectedRows, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("failed to get affected rows after deleting attendee: %#v", err)
+		log.Printf("failed to get affected rows after rsvp: %#v", err)
 		return UnexpectedError
 	}
 	if affectedRows == 0 {
-		return UserDoesNotAttendMeeting
+		return UserAlreadyAttendsMeeting
 	}
 	return nil
 }
-
-func (p *Postgres) GetMeetingAttendees(groupID string) ([]string, error) {
+func (p *Postgres) GetMeetingAttendees(groupID string) ([]*Attendee, error) {
 	query := `
-	SELECT user_id FROM attendees WHERE group_id = $1
+	SELECT user_id, amount FROM attendees WHERE group_id = $1
 	`
 	rows, err := p.db.Query(query, groupID)
 	if err != nil {
@@ -148,20 +151,20 @@ func (p *Postgres) GetMeetingAttendees(groupID string) ([]string, error) {
 		return nil, UnexpectedError
 	}
 	defer rows.Close()
-	userIDs := make([]string, 0)
+	attendees := make([]*Attendee, 0)
 	for rows.Next() {
-		var userID string
-		if err := rows.Scan(&userID); err != nil {
+		attendee := &Attendee{}
+		if err := rows.Scan(&attendee.UserID, &attendee.Amount); err != nil {
 			log.Printf("failed to get next attendee: %#v", err)
 			return nil, UnexpectedError
 		}
-		userIDs = append(userIDs, userID)
+		attendees = append(attendees, attendee)
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("failed to get close attendees: %#v", err)
 		return nil, UnexpectedError
 	}
-	return userIDs, nil
+	return attendees, nil
 }
 
 func (p *Postgres) CloseMeeting(groupID string) error {
